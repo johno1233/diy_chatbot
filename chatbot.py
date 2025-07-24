@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 
+import sys
+
 # print(torch.cuda.is_available()) # cuda is available
 
 # Eventually want to ingest and create a dataset out of pdf docs/texts that i have from humble bundle
@@ -26,7 +28,7 @@ test_data = datasets.FashionMNIST(
 
 batch_size = 64 # Batch size of 64: each element
 
-    # Create data loader
+# Create data loader
 train_dataloader = DataLoader(training_data, batch_size=batch_size)
 test_dataloader = DataLoader(test_data, batch_size=batch_size)
 
@@ -35,11 +37,11 @@ for X, y in test_dataloader:
     print(f"Shape of y: {y.shape} {y.dtype}")
     break
 
-    # Creating the model
+# Creating the model
 device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
 print(f"Using {device} device")
 
-    # Define the Model
+# Define the Model
 class NeuralNetwork(nn.Module):
     def __init__(self):
         super().__init__()
@@ -60,8 +62,7 @@ class NeuralNetwork(nn.Module):
 model = NeuralNetwork().to(device)
 print(model)
 
-    # Optomize model params: need a loss function and an optimizer
-
+# Optomize model params: need a loss function and an optimizer
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3) # pass in model parameters, and lr: learning rate
 
@@ -140,4 +141,5 @@ with torch.no_grad():
     predicted, actual = classes[pred[0].argmax(0)], classes[y]
     print(f'Predicted: "{predicted}", Actual: "{actual}"')
 
-
+# ADD CLI ARGS HANDLING -(t) test, -l (load), -s (save), -e n (e: epochs, n: integer for number of epochs), <no arg> run with defaults, -m: change model?
+# -m: change model - would need to figure out how to test the model "classes" 
