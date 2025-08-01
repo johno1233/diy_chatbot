@@ -52,8 +52,10 @@ def clean(text):
     lemma = WordNetLemmatizer()
     words = [lemma.lemmatize(word) for word in words]
 
-    return ' '.join(words)
+    return words # Do we want to return the iterable "words" or .join(words) like below?
+    #return ''.join(words)
 
+# these function calls are for testing only: comment out when running program as they will be called by main    
 path = check_dir()
 text = parse_dir(path)
 cleaned_text = clean(text)
