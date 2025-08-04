@@ -72,11 +72,20 @@ def filter(sequences):
             seen.add(seq)
     return filtered
 
+def normalize(sequences):
+    normalized = []
+    for seq in sequences:
+        seq = seq.lower()
+        seq = re.sub(r'\b{A-Za-z0-9._%+-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', seq) # Anonymize emails
+        normalized.append(seq)
+    return normalized
+
 # these function calls are for testing only: comment out when running program as they will be called by main    
 path = check_dir()
 text = parse_dir(path)
 cleaned_text = clean(text)
 sequences = segment_text(cleaned_text)
 cleaned_sequences = filter(sequences)
-print(cleaned_sequences)
+normalized_sequences = normailize(cleaned_sequences)
+print(normalized_sequences)
 
