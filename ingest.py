@@ -5,10 +5,8 @@ from pathlib import Path
 import re
 
 import nltk
-#nltk.download('all') # need to wrap this shit up so it doesn't run every time
+nltk.download('punkt') # need to wrap this shit up so it doesn't run every time
 
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 
 # get path from user input, check if path is valid, create a list of all pdf files in path
 def check_dir():
@@ -36,28 +34,49 @@ def parse_dir(files):
 
 # iterate over text and clean it for use with NLP
 def clean(text):
-    # remove special characters and digits (not sure if i want to do this given the texts)
-    text = re.sub(r'[^a-zA-Z\s]', '', text)
-    # convert to lowercase
-    text = text.lower()
-    # Remove extra whitespace
-    text = re.sub(r'\s+', ' ', text).strip()
-    #print(text)
-    # tokenize and remove stop words
-    stop_words = set(stopwords.words('english'))
-    words = text.split()
-    words = [word for word in words if word not in stop_words]
+    # Normalize encoding
+    text = text.encode("utf-8", errors="ignore").decode("utf-8")
 
-    # Lemmatization
-    lemma = WordNetLemmatizer()
-    words = [lemma.lemmatize(word) for word in words]
+    # Remove special characters and excessive whitespace
+    text = re.sub(r'\x00-\x1F\x7F-\x9f', '', text) # Removes control characters
+    text = re.sub(r'\s+', ' ', text)               # Replace multiple spaces witn a single space
+    text = text.strip()
 
-    return words # Do we want to return the iterable "words" or .join(words) like below?
-    #return ''.join(words)
+    # Remove common PDF artifacts (page numbers, headers, formatting)
+    text = re.sub(r'\bPage \d+\b', '', text) # Remove "Page X"
+    text = re.sub(r'^\d+\s*$', '', text, flags=re.MULTILINE) # Remove lone numbers like page numbers
+    return text
+
+def segment_text(text):
+    sentences = nltk.sent_tokenize(text)
+    # We can group sentences into paragraphs or fixed-length sequences
+    sequences = []
+    current_sequence = []
+    max_sequence_length = 512 # Adjust based on model requirements
+    for sentence in sentences:
+        current_sequence.append(sentence)
+        if len(" ".join(current_sequence)) >= max_sequence_length:
+            sequences.append(" ".join(current_sequence))
+            current_sequence = []
+    if current_sequence:
+        sequences.append(" ".join(current_sequence))
+    return sequences
+
+def filter(sequences):
+    # Remove short or duplicate sequences
+    filtered = []
+    seen = set()
+    for seq in sequences:
+        if len(seq) > 10 and seq not in seen: # Minimum length and not duplicate
+            filtered.append(seq)
+            seen.add(seq)
+    return filtered
 
 # these function calls are for testing only: comment out when running program as they will be called by main    
 path = check_dir()
 text = parse_dir(path)
 cleaned_text = clean(text)
-print(cleaned_text)
+sequences = segment_text(cleaned_text)
+cleaned_sequences = filter(sequences)
+print(cleaned_sequences)
 
