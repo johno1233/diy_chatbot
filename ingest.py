@@ -78,7 +78,7 @@ def filter(sequences):
 def normalize(sequences):
     normalized = []
     for seq in sequences:
-        seq = seq.lower()
+        #seq = seq.lower()
         seq = re.sub(r'\b{A-Za-z0-9._%+-]+\.[A-Z|a-z]{2,}\b', '[EMAIL]', seq) # Anonymize emails
         normalized.append(seq)
     return normalized
@@ -93,7 +93,7 @@ def nomnom():
     cleaned_sequences = filter(sequences)
     normalized_sequences = normalize(cleaned_sequences)
 
-    print(normalized_sequences)
+    #print(normalized_sequences)
 
     with open("training_data.txt", "w", encoding="utf-8") as f:
         for seq in normalized_sequences:
