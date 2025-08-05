@@ -3,6 +3,10 @@ import sys
 import os
 from pathlib import Path
 import re
+from transformers import AutoTokenizer
+from datasets import Dataset
+from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+
 
 import nltk
 nltk.download('punkt') # need to wrap this shit up so it doesn't run every time
@@ -81,11 +85,18 @@ def normalize(sequences):
     return normalized
 
 # these function calls are for testing only: comment out when running program as they will be called by main    
-path = check_dir()
-text = parse_dir(path)
-cleaned_text = clean(text)
-sequences = segment_text(cleaned_text)
-cleaned_sequences = filter(sequences)
-normalized_sequences = normailize(cleaned_sequences)
-print(normalized_sequences)
 
+def nomnom():
+    path = check_dir()
+    text = parse_dir(path)
+    cleaned_text = clean(text)
+    sequences = segment_text(cleaned_text)
+    cleaned_sequences = filter(sequences)
+    normalized_sequences = normailize(cleaned_sequences)
+
+    print(normalized_sequences)
+
+    with open("training_data.txt", "w", encoding="utf-8") as f:
+        for seq in normalized_sequences:
+            f.write(seq + "\n")
+    
