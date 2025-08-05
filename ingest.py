@@ -5,7 +5,6 @@ from pathlib import Path
 import re
 from transformers import AutoTokenizer
 from datasets import Dataset
-from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 
 
 import nltk
@@ -92,7 +91,7 @@ def nomnom():
     cleaned_text = clean(text)
     sequences = segment_text(cleaned_text)
     cleaned_sequences = filter(sequences)
-    normalized_sequences = normailize(cleaned_sequences)
+    normalized_sequences = normalize(cleaned_sequences)
 
     print(normalized_sequences)
 

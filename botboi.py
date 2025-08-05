@@ -7,16 +7,12 @@ from torchvision import datasets
 from torchvision.transforms import ToTensor
 
 import sys
-import ingest.py as noms
+from ingest import nomnom
 
-# get the PDF Directory, make sure it's valid, grab a list of the PDFs
-files = noms.check_dir()
-# Snag all the text from each pdf in List
-textybois = noms.parse_dir(files)
-# take the textybois and clean them up for LLMs
-swiffer = noms.clean(textybois)
+# create the file of tokens for training the model (stored as .txt)
 
-# now that we have, hopefully, clean textybois we can format it into a way that AI can chomp on it
+nomnom()
+
 
 
 
