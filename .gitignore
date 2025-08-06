@@ -205,3 +205,82 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# =========================
+# Python cache / temp files
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.tmp
+*.temp
+
+# =========================
+# Virtual environment folders
+# =========================
+.venv/
+venv/
+env/
+
+# =========================
+# OS-specific files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE-specific files
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Large AI model files
+# (Let Ollama manage these locally)
+# =========================
+*.bin
+*.gguf
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.onnx
+
+# Ollama cache folder (models live here)
+# NOTE: This is usually in your user directory,
+# but include here in case you copy it into your repo.
+.ollama/
+
+# =========================
+# Vector store & embeddings
+# (Rebuild locally from PDFs)
+# =========================
+vector_store/
+*.faiss
+*.pkl
+*.npy
+
+# =========================
+# Training / parsed data
+# (Recreate from PDFs)
+# =========================
+training_data.txt
+training_data.json
+training_data.csv
+data/
+datasets/
+
+# =========================
+# PDF sources (optional)
+# You can comment this out if you want PDFs tracked
+# =========================
+*.pdf
+
+# =========================
+# Temporary exports
+# =========================
+exports/
+output/
+
