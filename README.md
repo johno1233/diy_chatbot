@@ -8,8 +8,10 @@
 - Tokenizes and cleans the text for use with NLP 
 - Takes a look a system specs and recommends a model to run based on what resources you have
 - 2 variations: one is CLI the other uses streamlit for a nice-ish GUI
-- Each Variation (CLI and GUI) use "hybrid" mode: users can either have the model interact with the PDF files provided at the start or just use the model's base knowledge
-    - This functionality is iffy on the GUI version (will update in the future)
+- Each Variation (CLI and GUI) use "hybrid" mode:
+    - users can either have the model interact with the PDF files provided at the start or
+    - just use the model's base knowledge
+        - This functionality is iffy on the GUI version (will update in the future)
 
 ## Planned Functionality/Updates:
 - Have the GUI look prettier
