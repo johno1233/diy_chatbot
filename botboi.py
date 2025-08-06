@@ -35,13 +35,6 @@ def suggest_model():
             return "mistral"
         else:
             return "phi"
-   # else:
-   # if total_ram_gb < 8:
-   #     return "gpt4all (small, ~3B params, CPU mode)", "cpu"
-   # elif total_ram_gb < 16:
-   #     return "LLaMA 2 7B quantized (CPU)", "cpu"
-   # else:
-   #     return "LLaMA 2 13B quantized (CPU)", "cpu"
 
 # Ensure model is available locally
 def ensure_model_exists(model_name):
@@ -76,51 +69,75 @@ def build_vector_store(file_path="training_data.txt", save_path="vector_store"):
     print("Vector store saved.")
     return vectorstore
 
-# Loads the model from GPT4All
-#def load_model(model_name, device):
-#    print(f"Loading model: {model_name} on {device}...")
-#    model = GPT4All(model_name)
-#    return model
-
-# chat interface
-def chat_with_model(model_name, vectorstore):
-    print("Chat started with {model_name}. Type 'exit' to quit.")
+# Chat with Ollama in RAG Mode
+def chat_with_model_rag(model_name, vectorstore):
+    print(f"Chat started with {model_name} in **RAG MODE**. Type 'exit' to quit.")
     while True:
         query = input("You: ")
         if query.lower() in ["exit", "quit"]:
             break
 
-        # Retrieve relevant context
-        docs = vectorstore.similarity_search(query, k=3)
+        docs = vectorstore.similarity_search(query, k-3)
         context = "\n".join([d.page_content for d in docs])
-        
+
         prompt = f"Answer the following question based on the provided context:\n\nContext:\n{context}\n\nQuestion: {query}\nAnswer:"
 
-        # Generate reply
-        response = ollama.chat(model=model_name, messages=[{"role": "system", "content": "Your are a helpful AI assistant."},{"role": "user", "content": prompt}])
+        response: ollama.chat(model=model_name, messages=[{"role": "system", "content": "You are a helpful AI assistant."}, {"role": "user", "content": prompt}])
+
         print(f"AI: {response['message']['content']}")
+
+# Chat with Ollama model in pure mode (just it's base training and data)
+def chat_with_model_pure(model_name):
+    print(f"Chat started with {model_name} in **RAG MODE**. Type 'exit' to quit.")
+    while True:
+        query = input("You: ")
+        if query.lower() in ["exit", "quit"]:
+            break
+
+        response: ollama.chat(model=model_name, messages=[{"role": "system", "content": "You are a helpful AI assistant."}, {"role": "user", "content": prompt}])
+
+        print(f"AI: {response['message']['content']}")
+
+
+# chat interface
+#def chat_with_model(model_name, vectorstore):
+#    print("Chat started with {model_name}. Type 'exit' to quit.")
+#    while True:
+#        query = input("You: ")
+#        if query.lower() in ["exit", "quit"]:
+#            break
+#
+#        # Retrieve relevant context
+#        docs = vectorstore.similarity_search(query, k=3)
+#        context = "\n".join([d.page_content for d in docs])
+#        
+#        prompt = f"Answer the following question based on the provided context:\n\nContext:\n{context}\n\nQuestion: {query}\nAnswer:"
+#
+#        # Generate reply
+#        response = ollama.chat(model=model_name, messages=[{"role": "system", "content": "Your are a helpful AI assistant."},{"role": "user", "content": prompt}])
+#        print(f"AI: {response['message']['content']}")
 
 #Main Program Flow
 def main():
-    # First we run ingestion
-    nomnom()
 
-    # Second: suggest and select model
+    # Get which mode we're running in
+    mode = input("Select mode: (1) RAG Mode (PDF Search)\n(2) Pure Chat: \n").strip()
+
+    # suggest and select model
     suggested = suggest_model()
     print(f"Suggested model: {suggested}")
     choice = input(f"Press Enter to acept or type another model name: ") or suggested
 
     ensure_model_exists(choice)
 
-    # Third: build vector store
-    vectorstore = build_vector_store()
-
-    # Fourth: Load Model
-    # model = load_model(choice, device)
-
-    # Fifth: Chat!
-    chat_with_model(choice, vectorstore)
-
+    # Run in the chosen mode
+    if mode == "1":
+        nomnom()
+        vectorstore = build_vector_store()
+        chat_with_model_rag(choice, vectorstore)
+    elif mode == "2":
+        chat_with_model_pure(choice)
+    
 if __name__ == "__main__":
     main()
 
