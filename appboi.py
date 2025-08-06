@@ -1,5 +1,5 @@
-import stramlit as st
-from core import suggest_model, ensure_model_exitst, load_vector_store, build_vector_store, ollama_chat
+import streamlit as st
+from core import suggest_model, ensure_model_exists, load_vector_store, build_vector_store, ollama_chat
 from ingest import nomnom
 
 st.set_page_config(page_title="AppBoi", layout="wide")
@@ -49,14 +49,14 @@ if st.session_state.active_mode == "RAG":
     st.subheader("RAG Chat History")
     for msg in st.session_state.rag_history:
         if msg["role"] == "user":
-            st.markdown(f"You: {msg['content]}")
+            st.markdown(f"You: {msg['content']}")
         elif msg["role"] == "assistant":
             st.markdown(f"AI: {msg['content']}")
 else:
     st.subheader("Pure Chat History")
     for msg in st.session_state.pure_history:
         if msg["role"] == "user":
-            st.markdown(f"You: {msg['content]}")
+            st.markdown(f"You: {msg['content']}")
         elif msg["role"] == "assistant":
             st.markdown(f"AI: {msg['content']}")
 
