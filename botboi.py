@@ -1,90 +1,126 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, BitsAndBytesConfig
-from peft import LoraConfig, get_peft_model
-from datasets import load_dataset
+import psutil # lets us get system info
 import torch
-from ingest import nomnom
-#import protobuf
+from ingest import nomnom # calls my PDF parser
+from langchain.vectorstores import FAISS #vector store library for fast similarity search
+from langchain.embeddings import HuggingFaceEmbeddings # turns text into numerical vactors (embeddings) so the model can understand semantic meaning
+import ollama # python wrapper for running lightwieight local chat models 
+import os # standard Python OS utilities (for file paths, etc)
 
-#hf-auth-login
 
-# Load the dataset 
-nomnom()
+# Suggest a model
+def suggest_model():
+    # CPU and RAM check
+    total_ram_gb = psutil.virtual_memory().total / (1024 ** 3)
+    cpu_count = psutil.cpu_count(logical=True)
 
-dataset = load_dataset("text", data_files={"train": "training_data.txt"})
+    # GPU Check
+    gpu_available = torch.cuda.is_available()
+    gpu_vram_gb = 0
+    if gpu_available:
+        gpu_props = torch.cuda.get_device_properties(0)
+        gpu_vram_gb = gpu_props.total_memory / (1024 ** 3)
+        
 
-# Load the tokenizer
-model_name = "mistralai/Mistral-7B-Instruct-v0.3"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-if tokenizer.pad_token is None:
-    tokenizer.pad_token = tokenizer.eos_token
+    print(f"Detected: {total_ram_gb:.2f} GB RAM, {cpu_count} CPU Cores.")
+    if gpu_available:
+        print(f"GPU: {torch.cuda.get_device_name(0)} with {gpu_vram_gb:.2f} GB VRAM")
+    else:
+        print("No GPU detected. Running on CPU only.")
 
-# Tokenize Dataset
-def tokenize_function(examples):
-    return tokenizer(
-        examples["text"],
-        truncation=True,
-        padding="max_length",
-        max_length=512,
-        return_tensors="pt",
-    )
+    # Suggest a model
+    if gpu_available:
+        if gpu_vram_gb < 4:
+            return "llama2"
+        elif gpu_vram_gb < 8:
+            return "mistral"
+        else:
+            return "phi"
+   # else:
+   # if total_ram_gb < 8:
+   #     return "gpt4all (small, ~3B params, CPU mode)", "cpu"
+   # elif total_ram_gb < 16:
+   #     return "LLaMA 2 7B quantized (CPU)", "cpu"
+   # else:
+   #     return "LLaMA 2 13B quantized (CPU)", "cpu"
 
-tokenized_dataset = dataset["train"].map(tokenize_function, batched=True)
-tokenized_dataset = tokenized_dataset.remove_columns(["text"])
-tokenized_dataset.set_format("torch")
+# Ensure model is available locally
+def ensure_model_exists(model_name):
+    
+    try:
+        # get a list of installed models
+        installed_info = ollama.list()
+        installed_models = [m["model"] for m in installed_info.get("models", [])]
 
-# Configure 4-bit quantization
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_use_double_quant=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.bfloat16,
-)
+        # Check if requested model is installed
+        if not any (model_name.lower() in m.lower() for m in installed_models):
+            print(f"Model {model_name} not found locally. Pulling from Ollama...")
+            ollama.pull(model_name)
+            print(f"Model {model_Name} downloaded successfully.")
+        else:
+            print(f"Model {model_name} is already installed.")
+    except Exception as e:
+        print(f"Error checking Ollama models: {e}")
+        print("Proceeding to pull the model anyway...")
+        ollama.pull(model_name)
 
-# Load Model
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    quantization_config=bnb_config,
-    device_map="auto",
-    torch_dtype=torch.bfload16,
-)
 
-# Apply LoRA
-lora_config = LoraConfig(
-    r=16, # Low Rank
-    lora_alpha=32,
-    target_modules=["q_proj", "v_proj"], #Mistral-specific modules
-    lora_dropout=0.05,
-    bias="none",
-    task_type="CAUSAL_LM",
-)
-model = get_peft_model(model, lora_config)
+# Build vector store from training data 
+def build_vector_store(file_path="training_data.txt", save_path="vector_store"):
+    with open(file_path, "r", encoding="utf-8") as f:
+        docs = [line.strip() for line in f if line.strip()]
 
-# Training Arguments
-training_args = TrainingArguments(
-    output_dir="./mixtral_lora_output",
-    num_train_epochs=3,
-    per_device_train_batch_size=1, # lower duew to vram constraints
-    gradient_accumulation_steps=8, # effective batch size = 8
-    optim="adamw_torch",
-    save_steps=1000,
-    save_total_limit=2,
-    logging_steps=100,
-    learning_rate=2e-5,
-    fp16=True,
-    max_grad_norm=0.3,
-    warmup_ration=0.1,
-)
+    print(f"Embedding {len(docs)} sequences...")
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-V2")
+    vectorstore = FAISS.from_texts(docs, embeddings)
+    vectorstore.save_local(save_path)
+    print("Vector store saved.")
+    return vectorstore
 
-# initialize and train
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=tokenized_dataset,
-)
-trainer.train()
+# Loads the model from GPT4All
+#def load_model(model_name, device):
+#    print(f"Loading model: {model_name} on {device}...")
+#    model = GPT4All(model_name)
+#    return model
 
-# Save model
-model.save_pretrained("./trained_mistral_lora_model")
-tokenizer.save_pretrained("./trained_mistral_lora_model")
+# chat interface
+def chat_with_model(model_name, vectorstore):
+    print("Chat started with {model_name}. Type 'exit' to quit.")
+    while True:
+        query = input("You: ")
+        if query.lower() in ["exit", "quit"]:
+            break
 
+        # Retrieve relevant context
+        docs = vectorstore.similarity_search(query, k=3)
+        context = "\n".join([d.page_content for d in docs])
+        
+        prompt = f"Answer the following question based on the provided context:\n\nContext:\n{context}\n\nQuestion: {query}\nAnswer:"
+
+        # Generate reply
+        response = ollama.chat(model=model_name, messages=[{"role": "system", "content": "Your are a helpful AI assistant."},{"role": "user", "content": prompt}])
+        print(f"AI: {response['message']['content']}")
+
+#Main Program Flow
+def main():
+    # First we run ingestion
+    nomnom()
+
+    # Second: suggest and select model
+    suggested = suggest_model()
+    print(f"Suggested model: {suggested}")
+    choice = input(f"Press Enter to acept or type another model name: ") or suggested
+
+    ensure_model_exists(choice)
+
+    # Third: build vector store
+    vectorstore = build_vector_store()
+
+    # Fourth: Load Model
+    # model = load_model(choice, device)
+
+    # Fifth: Chat!
+    chat_with_model(choice, vectorstore)
+
+if __name__ == "__main__":
+    main()
 
