@@ -18,3 +18,5 @@
 - GUI version should be able to take input for path/to/files in the GUI not in the command line
 - Add web scraping functionality to get up-to-date information based on what is found online 
 
+### NOTE:
+This is a vibe coding project and serves as a learning tool for me to understand AI Dev workflows, how to leverage AI chat bots (i.e., Grok, ChatGPT, etc.) in my development work flow, and also learn python.
