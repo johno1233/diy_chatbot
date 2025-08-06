@@ -6,10 +6,13 @@
 - If the directory is valid, it grabs all docs with .pdf and puts it into a list
 - Parses the files and pulls all valid text from them
 - Tokenizes and cleans the text for use with NLP 
+- Takes a look a system specs and recommends a model to run based on what resources you have
+- 2 variations: one is CLI the other uses streamlit for a nice-ish GUI
+- Each Variation (CLI and GUI) use "hybrid" mode: users can either have the model interact with the PDF files provided at the start or just use the model's base knowledge
+    - This functionality is iffy on the GUI version (will update in the future)
 
-## Planned Functionality:
-- Correct tokenization and cleaning of text data to ensure it's being done properly
-- Create the NLP ML thingy
-- Train the model
-- Add front end to be able to ask the model questions
+## Planned Functionality/Updates:
+- Have the GUI look prettier
+- GUI version should be able to take input for path/to/files in the GUI not in the command line
+- Add web scraping functionality to get up-to-date information based on what is found online 
 
