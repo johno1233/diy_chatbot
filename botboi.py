@@ -1,5 +1,13 @@
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.text import Text
+from rich.progress import track
+
 from core import suggest_model, ensure_model_exists, build_vector_store, load_vector_store, ollama_chat
 from ingest import nomnom
+
+console = Console()
 
 # Switch between RAG and Pure modes
 def chat_with_model_hybrid(model_name, vectorstore):
@@ -7,8 +15,8 @@ def chat_with_model_hybrid(model_name, vectorstore):
     rag_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using provided context."}]
     pure_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using general knowledge."}] 
 
-    print(f"Chat started with Ollama Model: {model_name}.")
-    print(f"Commands: /rag = RAG mode, /pure = Pure mode, /exit = quit")
+    console.print(Panel.fit(f"[bold cyan]CLI AI Assistant[/bold cyan]\nModel: {model_name}\nMode: {mode.upper()}", border_style="cyan"))
+    print(Panel.fit(f"[bold yellow]Commands: /rag = RAG mode\n/pure = Pure mode\n/exit = quit[/bold yellow]", border_style="yellow"))
     print(f"Starting in {mode.upper()} mode.")
 
     while True:
