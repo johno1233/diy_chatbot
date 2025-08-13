@@ -3,8 +3,8 @@ import psutil
 import torch
 import ollama
 from ingest import nomnom
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 VECTOR_STORE_PATH = "vector_store"
 
@@ -77,3 +77,6 @@ def load_vector_store():
 # Ollama Chat
 def ollama_chat(model_name, messages):
     return ollama.chat(model=model_name, messages=messages)["message"]["content"]
+
+
+suggest_model()
