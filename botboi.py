@@ -3,9 +3,10 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
 from rich.progress import track
+from rich.status import Status
 
 from core import suggest_model, ensure_model_exists, build_vector_store, load_vector_store, ollama_chat
-from ingest import nomnom
+from ingest import nomnom, check_dir
 
 console = Console()
 
@@ -16,21 +17,22 @@ def chat_with_model_hybrid(model_name, vectorstore):
     pure_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using general knowledge."}] 
 
     console.print(Panel.fit(f"[bold cyan]CLI AI Assistant[/bold cyan]\nModel: {model_name}\nMode: {mode.upper()}", border_style="cyan"))
-    print(Panel.fit(f"[bold yellow]Commands: /rag = RAG mode\n/pure = Pure mode\n/exit = quit[/bold yellow]", border_style="yellow"))
+    console.print(Panel.fit(f"[bold yellow]Commands:\n/rag = RAG mode\n/pure = Pure mode\n/exit = quit[/bold yellow]", border_style="yellow"))
     print(f"Starting in {mode.upper()} mode.")
 
     while True:
-        query = input("You: ")
+        query = Prompt.ask("[bold green]You: [/bold green]")
 
         if query.lower() == "/exit":
+            console.print("[bold red]Exiting chat...[/bold red]")
             break
         elif query.lower() == "/rag":
             mode = "rag"
-            print("Switched to RAG mode.")
+            console.print("[bold cyan]Switched to RAG mode.[/bold cyan]")
             continue
         elif query.lower() == "/pure":
             mode = "pure"
-            print("Switched to Pure mode.")
+            console.print("[bold cyan]Switched to Pure mode.[/bold cyan]")
             continue
 
         if mode == "rag":
@@ -48,24 +50,36 @@ def chat_with_model_hybrid(model_name, vectorstore):
             ai_reply = ollama_chat(model_name, pure_messages)
             pure_messages.append({"role": "assistant", "content": ai_reply})
         
-        print(f"AI: {ai_reply}")
+        console.print(Panel(ai_reply, title="[bold magenta]AI[bold magenta]", border_style="magenta"))
 
 
 #Main Program Flow
 def main():
+    # Detect model
+    console.print("[bold cyan]Detecting best model for your system...[/bold cyan]")
+    model_name = suggest_model()
+    choice = Prompt.ask("Press enter to accept model", default=model_name)
 
-    # suggest and select model
-    suggested = suggest_model()
-    print(f"Suggested model: {suggested}")
-    choice = input(f"Press Enter to acept or type another model name: ") or suggested
-
+    # Ensure model exists
+    console.print("[bold cyan]Ensureing model is installed...[/bold cyan]")
     ensure_model_exists(choice)
 
-    # Run in the chosen mode
-    nomnom()
-    vectorstore = build_vector_store()
+    # Ask for PDF Directory
+    pdf_dir = Prompt.ask("[bold cyan]Enter the full path to your PDF directory[/bold cyan]")
 
-    # hybrid chat sesh
+    # Parse PDFs with progress
+    files = check_dir(pdf_dir)
+    if not files:
+        return
+    nomnom(pdf_dir) 
+
+    # Bulding vector store with spinner
+    with Status("[bold green] Building vector store...[/bold green]", spinner="dots"):
+        vectorstore = build_vector_store()
+
+    console.print("[bold green]Model and data preparation complete![/bold green]")
+
+    # Start chat
     chat_with_model_hybrid(choice, vectorstore)
 
 if __name__ == "__main__":

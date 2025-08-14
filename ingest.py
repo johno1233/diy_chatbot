@@ -5,35 +5,53 @@ from pathlib import Path
 import re
 from transformers import AutoTokenizer
 from datasets import Dataset
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, BarColumn, TimeElapsedColumn
 
+console = Console()
 
 import nltk
-nltk.download('punkt') # need to wrap this shit up so it doesn't run every time
+nltk.download('punkt', quiet=True)
 
 
 # get path from user input, check if path is valid, create a list of all pdf files in path
-def check_dir():
-    files = []
-    path = input("Enter path to pdf directory: ")
-    if os.path.isdir(path) == True:
-        dir = Path(path)
-        print(f"Path \"{path}\" exists")
-        files = list(dir.glob("*.pdf"))
+def check_dir(pdf_dir=None):
+    if pdf_dir is None:
+        pdf_dir = input("Enter path to pdf directory: ")
+    
+    if os.path.isdir(pdf_dir):
+        dir_path = Path(pdf_dir)
+        files = list(dir_path.glob("*.pdf"))
+        if not files:
+            console.print(f"[bold red]No PDF files found in {pdf_dir}[/bold red]")
         return files
     else:
-        print(f"ERROR: path {path} does not exist. Make sure the directory you entered is correct")
+        console.print(f"[bold red]ERROR: path {pdf_dir} does not exist. [/bold red]")
+        return []
+
+
 
 # for each file in files, extract all text and save to "extracted_text" 
 def parse_dir(files):
     extracted_text = ""
-    for file in files:
-        with fitz.open(file) as doc:
-            full_text = ""
-            print(f"Processing file: {file}")
-            for page in doc:
-                full_text += page.get_text()
-            extracted_text += full_text
+    with Progress(
+        SpinnerColumn(),
+        "[progress.desctiption]{task.description}",
+        BarColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Processing PDFs...", total=len(files))
+        for file in files:
+            with fitz.open(file) as doc:
+                full_text = ""
+                for page in doc:
+                    full_text += page.get_text()
+                extracted_text += full_text
+            progress.update(task, description=f"Processed: {file.name}")
+            progress.advance(task)
     return extracted_text
+
 
 # iterate over text and clean it for use with NLP
 def clean(text):
@@ -85,17 +103,19 @@ def normalize(sequences):
 
 # these function calls are for testing only: comment out when running program as they will be called by main    
 
-def nomnom():
-    path = check_dir()
-    text = parse_dir(path)
+def nomnom(pdf_dir=None):
+    files = check_dir(pdf_dir)
+    if not files:
+        return
+
+    text = parse_dir(files)
     cleaned_text = clean(text)
     sequences = segment_text(cleaned_text)
     cleaned_sequences = filter(sequences)
     normalized_sequences = normalize(cleaned_sequences)
 
-    #print(normalized_sequences)
-
     with open("training_data.txt", "w", encoding="utf-8") as f:
         for seq in normalized_sequences:
             f.write(seq + "\n")
     
+    console.print(f"[bold green]Saved training daat from {len(files)} PDFs to training_data.txt[/bold green]")

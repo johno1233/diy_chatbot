@@ -4,7 +4,7 @@ import torch
 import ollama
 from ingest import nomnom
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 VECTOR_STORE_PATH = "vector_store"
 
@@ -36,6 +36,8 @@ def suggest_model():
             return "mistral"
         else:
             return "phi"
+    else:
+        return "llama2"
 
 # Ensure model is available locally
 def ensure_model_exists(model_name):
@@ -63,7 +65,12 @@ def build_vector_store(file_path="training_data.txt", save_path="vector_store"):
         docs = [line.strip() for line in f if line.strip()]
 
     print(f"Embedding {len(docs)} sequences...")
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-V2")
+    
+    embeddings = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-small-en-v1.5",
+        model_kwargs={"device": "cpu"}
+    )
+
     vectorstore = FAISS.from_texts(docs, embeddings)
     vectorstore.save_local(save_path)
     print("Vector store saved.")
@@ -71,7 +78,10 @@ def build_vector_store(file_path="training_data.txt", save_path="vector_store"):
 
 # Load vector store
 def load_vector_store():
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="BAAI/bge-small-en-v1.5",
+        model_kwargs={"device": "cpu"}
+    )
     return FAISS.load_local(VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True)
 
 # Ollama Chat
@@ -79,4 +89,3 @@ def ollama_chat(model_name, messages):
     return ollama.chat(model=model_name, messages=messages)["message"]["content"]
 
 
-suggest_model()
