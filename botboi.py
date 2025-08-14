@@ -57,12 +57,12 @@ def chat_with_model_hybrid(model_name, vectorstore):
 def main():
     # Detect model
     console.print("[bold cyan]Detecting best model for your system...[/bold cyan]")
-    model_name = suggest_model()
-    choice = Prompt.ask("Press enter to accept model", default=model_name)
+    compatible_models, selected_model = suggest_model()
+    #choice = Prompt.ask("Press enter to accept model", default=selected_model)
 
     # Ensure model exists
-    console.print("[bold cyan]Ensureing model is installed...[/bold cyan]")
-    ensure_model_exists(choice)
+    console.print("[bold cyan]Ensuring model is installed...[/bold cyan]")
+    ensure_model_exists(selected_model)
 
     # Ask for PDF Directory
     pdf_dir = Prompt.ask("[bold cyan]Enter the full path to your PDF directory[/bold cyan]")
@@ -80,7 +80,7 @@ def main():
     console.print("[bold green]Model and data preparation complete![/bold green]")
 
     # Start chat
-    chat_with_model_hybrid(choice, vectorstore)
+    chat_with_model_hybrid(selected_model, vectorstore)
 
 if __name__ == "__main__":
     main()
