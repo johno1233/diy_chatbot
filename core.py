@@ -124,13 +124,12 @@ def suggest_model():
 
     # Allow user to choose a model
     while True:
-        choice = Prompt.ask("\nEnter the number fo the model to use (or press Enter to use the suggested model)", 
+        choice = Prompt.ask("\nEnter the number of the model to use (or press Enter to use the suggested model)", 
             default="")
         if choice == "":
             console.print(f"[bold green]Using suggested model: {suggested_model}[/bold green]")
             return [model["name"] for model in compatible_models], suggested_model
         try:
-            print("here")
             choice_idx = int(choice) - 1
             if 0 <= choice_idx < len(compatible_models):
                 selected_model = compatible_models[choice_idx]["name"]

@@ -118,4 +118,4 @@ def nomnom(pdf_dir=None):
         for seq in normalized_sequences:
             f.write(seq + "\n")
     
-    console.print(f"[bold green]Saved training daat from {len(files)} PDFs to training_data.txt[/bold green]")
+    console.print(f"[bold green]Saved training data from {len(files)} PDFs to training_data.txt[/bold green]")
