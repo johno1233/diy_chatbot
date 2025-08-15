@@ -74,6 +74,7 @@ def main():
     nomnom(pdf_dir) 
 
     # Bulding vector store with spinner
+    # ERROR: Displays "Building vector store" twice for some reason but only one functions with the spinner element
     with Status("[bold green] Building vector store...[/bold green]", spinner="dots"):
         vectorstore = build_vector_store()
 
