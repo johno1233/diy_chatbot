@@ -36,6 +36,7 @@ def suggest_model():
     console.print(Panel(system_info, title="System Specifications", border_style="cyan"))
 
     # Define Ollama models with approximate Ram requiremends
+    # Want to add the ability to dynamically pull a list from ollama
     ollama_models = [
         {"name": "smollm2:135m", "params": 0.135, "min_ram": 1, "min_vram": 0, "use_case": "Lightweight tasks"},
         {"name": "smollm2:360m", "params": 0.36, "min_ram": 2, "min_vram": 0, "use_case": "Lightweight tasks"},
