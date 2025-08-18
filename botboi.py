@@ -7,11 +7,12 @@ from rich.status import Status
 
 from core import suggest_model, ensure_model_exists, build_vector_store, load_vector_store, ollama_chat
 from ingest import nomnom, check_dir
+from web_retriever import web_retrieve
 
 console = Console()
 
 # Switch between RAG and Pure modes
-def chat_with_model_hybrid(model_name, vectorstore):
+def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
     mode = "rag" # default
     rag_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using provided context."}]
     pure_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using general knowledge."}] 
@@ -36,10 +37,29 @@ def chat_with_model_hybrid(model_name, vectorstore):
             continue
 
         if mode == "rag":
-            # get relevant context from PDFs
-            docs = vectorstore.similarity_search(query, k=3)
-            context = "\n".join([d.page_content for d in docs])
+            # try local RAG first
+            docs_with_scores = vectorstore.similarity_search_with_score(query, k=k)
+            
+            #------------------------------ DEBUGGING---------------------------------
+            for doc, score in docs_with_scores:
+                console.print(f"[grey50]Local candidate score: {score:.2f}[/grey50]")
+            #-------------------------------------------------------------------------
+            
+            good_matches = [doc for doc, score in docs_with_scores if score <= min_score]
 
+            if good_matches:
+                context = "\n".join([d.page_content for d in good_matches])
+                console.print(f"[bold cyan] Using local RAG context (min_score={min_score})[/bold cyan]")
+            else:
+                # Fallback to web retrieval
+                console.print("[bold cyan]No local match found. Falling back to web search...[/bold cyan]")
+                web_docs = web_retrieve(query, k=k)
+                if not web_docs:
+                    context = "\n".join([d.page_ciontent for d in web_docs])
+                else:
+                    context = "\n".join([d.page_content for d in web_docs])
+            
+            # Ask model with context
             prompt = f"Answer the following question based on the provided context:\n\n{context}\n\nQuestion: {query}"
             rag_messages.append({"role": "user", "content": prompt})
             ai_reply = ollama_chat(model_name, rag_messages)
