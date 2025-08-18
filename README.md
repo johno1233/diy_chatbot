@@ -12,8 +12,12 @@
     - users can either have the model interact with the PDF files provided at the start or
     - just use the model's base knowledge
         - This functionality is iffy on the GUI version (will update in the future)
-
+- Removed GUI functionality/streamlit (it was a pain) -- now completely cli
+    - Made it look pretty with Rich CLI library
+- Added webscraping functionality to fall back on when a query is made that isn't covered in provided RAG environment
 ## Planned Functionality/Updates:
-- Have the GUI look prettier
-- GUI version should be able to take input for path/to/files in the GUI not in the command line
-- Add web scraping functionality to get up-to-date information based on what is found online 
+- Continue to refine CLI interface
+- Currently "Sources" are returned regardlessd of whether or not we fell back to web scraping or used provided context
+- want to add support for more file extensions
+- want to make sure that GPU is being detected accurately for model suggestion
+- Want to dynamically pull list of models from Ollama instead of a fixed list of models
