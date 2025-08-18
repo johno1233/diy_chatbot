@@ -52,10 +52,11 @@ def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
                 console.print(f"[bold cyan] Using local RAG context (min_score={min_score})[/bold cyan]")
             else:
                 # Fallback to web retrieval
-                console.print("[bold cyan]No local match found. Falling back to web search...[/bold cyan]")
-                web_docs = web_retrieve(query, k=k)
+                console.print("[bold cyan]No strong local match found. Falling back to web search...[/bold cyan]")
+                web_docs, sources = web_retrieve(query, k=k)
                 if not web_docs:
-                    context = "\n".join([d.page_ciontent for d in web_docs])
+                    context = "No context could be retrieved."
+                    sources = []
                 else:
                     context = "\n".join([d.page_content for d in web_docs])
             
@@ -72,6 +73,8 @@ def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
         
         console.print(Panel(ai_reply, title="[bold magenta]AI[bold magenta]", border_style="magenta"))
 
+        if sources:
+            console.print(Panel("\n".join(sources), title="[bold blue]Sources[/bold blue]", border_style="blue"))
 
 #Main Program Flow
 def main():

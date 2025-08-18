@@ -3,11 +3,12 @@ from bs4 import BeautifulSoup
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from urllib.parse import quote_plus
+import trafilatura
 
 #------------ CONFIG --------------------
 SEARCH_ENGINE = "https://duckduckgo.com/html/?q=" # HTML results, easy to parse
 MAX_RESULTS = 3
-EMBEDDINT_MODEL = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 #----------------------------------------
 
 def search_web(query):
@@ -18,25 +19,21 @@ def search_web(query):
     soup = BeautifulSoup(resp.text, "html.parser")
 
     urls = []
-    for a in soup.select("a.result_a")[:MAX_RESULTS]:
+    for a in soup.select("a.result__a")[:MAX_RESULTS]:
         href = a.get("href")
-        if href and href.startswith("http"):
-            urls.append(href)
+        if href:
+            full_href="https://html.duckduckgo.com"+href
+            urls.append(full_href)
     return urls
 
 def scrape_url(url):
     """Download and extract visible text from a web page."""
     try:
-        resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        soup = BeautifulSoup(resp.text, "html.parser")
-
-        # Remove scripts and styles
-        for tag in soup(["script", "style", "noscript"]):
-            tag.decompose()
-
-        text = " ".soin(soup.stripped_strings)
-        return text
-    except Exceptin as e:
+        downloaded = trafilatura.fetch_url(url)
+        if downloaded:
+            text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+            return text if text else ""
+    except Exception as e:
         print(f"Error scraping {url}: {e}")
         return ""
 
@@ -48,22 +45,31 @@ def chunk_text(text, chunk_size=500):
 def web_retrieve(query, k=3):
     """Retrieve context chunks from live web search."""
     urls = search_web(query)
+    print(f"[Debug] Found URLs: {urls}")
     if not urls:
-        return []
+        return [], []
     
     pages_text = []
+    sources = []
+
     for url in urls:
         page = scrape_url(url)
         if page:
             pages_text.append(page)
+            sources.append(url)
+    if not pages_text:
+        print("[DEBUG] No text scraped from URLs.")
+        return [], []
 
     full_text = "\n".join(pages_text)
     chunks = chunk_text(full_text)
 
-    embeddings = HuggingFaceBgeEmbeddings(
-        mode_name=EMBEDDING_MODEL,
-        model_kwargs={"device": "cpu"}
+    embeddings = HuggingFaceEmbeddings(
+        model_name=EMBEDDING_MODEL,
+        model_kwargs={"device": "cuda"}
     )
 
     temp_store = FAISS.from_texts(chunks, embeddings)
-    return temp_store.similartity_search(query, k=k)
+    results = temp_store.similarity_search(query, k=k)
+
+    return results, sources
