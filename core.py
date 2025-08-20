@@ -2,6 +2,7 @@ import os
 import psutil
 import torch
 import ollama
+import requests
 from ingest import nomnom
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -13,6 +14,21 @@ from rich.prompt import Prompt
 VECTOR_STORE_PATH = "vector_store"
 
 console = Console()
+
+
+def fetch_remote_models():
+    try:
+        resp = requests.get("https://ollama.com/api/models", timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("models", [])
+        else:
+            console.print(
+                f"[bold red] Failed to fetch remote models (status {resp.status_code})[/bold red]"
+            )
+    except Exception as e:
+        console.print(f"[bold red]Error fetching remote models: {e}[/bold red]")
+    return []
 
 
 # Suggest a model
@@ -75,28 +91,37 @@ def suggest_model():
                     "min_ram": round(min_ram, 1),
                     "min_vram": round(min_vram, 1),
                     "use_case": "General Purpose",  # will expand later
+                    "source": "Installed",
                 }
             )
 
-    # Sort models by parameter size (ascending) for suggestion logic
-    compatible_models.sort(key=lambda x: x["param_size"])
+    remote_models = fetch_remote_models()
 
-    # Suggest a model: prefer larger models for better performance if resources allow
-    if not compatible_models:
-        console.print(
-            "[bold red]No compatible models found for you system specifications.[/bold red]"
+    all_models = list(compatible_models)
+    for m in remote_models:
+        all_models.append(
+            {
+                "name": m.get("name", "unknown"),
+                "param_size": m.get("parameter_size", "?"),
+                "min_ram": "?",
+                "min_vram": "?",
+                "use_case": m.get("description", "Avalable on Ollama Hub"),
+                "source": "Remote",
+            }
         )
+
+    if not all_models:
+        console.print("[bold red]No models found (local or remote).[/bold red]")
         return [], None
 
-    # sort by params
-    compatible_models.sort(key=lambda x: x["param_size"])
-
-    # suggest largest that fits
-    suggested_model = compatible_models[-1]["name"]
+    # Sort models by parameter size (ascending) for suggestion logic
+    all_models.sort(key=lambda x: x["param_size"])
 
     # Display compatible models in a table
     table = Table(
-        title="Compatible Models", title_style="bold magenta", border_style="cyan"
+        title="Compatible Models (Local + Remote)",
+        title_style="bold magenta",
+        border_style="cyan",
     )
     table.add_column("No.", style="cyan", justify="center")
     table.add_column("Model Name", style="green")
@@ -104,8 +129,9 @@ def suggest_model():
     table.add_column("Use Case", style="blue")
     table.add_column("Min RAM (GB)", style="white")
     table.add_column("Min VRAM (GB)", style="white")
+    table.add_column("Source", style="white")
 
-    for i, model in enumerate(compatible_models, 1):
+    for i, model in enumerate(all_models, 1):
         table.add_row(
             str(i),
             model["name"],
@@ -113,9 +139,13 @@ def suggest_model():
             model["use_case"],
             str(model["min_ram"]),
             str(model["min_vram"]) if model["min_vram"] > 0 else "N/A",
+            model["source"],
         )
 
     console.print(table)
+    suggested_model = (
+        compatible_models[-1]["name"] if compatible_models else all_models[0]["name"]
+    )
     console.print(
         Panel(
             f"[bold green]Suggested Model: {suggested_model}[/bold green]",
@@ -136,12 +166,18 @@ def suggest_model():
             return [model["name"] for model in compatible_models], suggested_model
         try:
             choice_idx = int(choice) - 1
-            if 0 <= choice_idx < len(compatible_models):
-                selected_model = compatible_models[choice_idx]["name"]
+            if 0 <= choice_idx < len(all_models):
+                selected_model = all_models[choice_idx]["name"]
+                source = all_models[choice_idx]["source"]
+                if source == "Remote":
+                    console.print(
+                        f"[bold yellow]Model {selected_model} is not installed. Pulling from Ollama Hub...[/bold yellow]"
+                    )
+                    os.system(f"ollama pull {selected_model}")
                 console.print(
                     f"[bold green]Selected Model: {selected_model}[/bold green]"
                 )
-                return [model["name"] for model in compatible_models], selected_model
+                return [model["name"] for model in all_models], selected_model
             else:
                 console.print(
                     f"[bold red]Please enter a number between 1 and {len(compatible_models)}.[/bold red]"
