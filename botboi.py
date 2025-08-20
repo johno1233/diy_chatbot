@@ -5,20 +5,47 @@ from rich.text import Text
 from rich.progress import track
 from rich.status import Status
 
-from core import suggest_model, ensure_model_exists, build_vector_store, load_vector_store, ollama_chat
+from core import (
+    suggest_model,
+    ensure_model_exists,
+    build_vector_store,
+    load_vector_store,
+    ollama_chat,
+)
 from ingest import nomnom, check_dir
 from web_retriever import web_retrieve
 
 console = Console()
 
+
 # Switch between RAG and Pure modes
 def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
-    mode = "rag" # default
-    rag_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using provided context."}]
-    pure_messages = [{"role": "system", "content": "You are a helpful AI assistant that answers questions using general knowledge."}] 
+    mode = "rag"  # default
+    rag_messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful AI assistant that answers questions using provided context.",
+        }
+    ]
+    pure_messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful AI assistant that answers questions using general knowledge.",
+        }
+    ]
 
-    console.print(Panel.fit(f"[bold cyan]CLI AI Assistant[/bold cyan]\nModel: {model_name}\nMode: {mode.upper()}", border_style="cyan"))
-    console.print(Panel.fit(f"[bold yellow]Commands:\n/rag = RAG mode\n/pure = Pure mode\n/exit = quit[/bold yellow]", border_style="yellow"))
+    console.print(
+        Panel.fit(
+            f"[bold cyan]CLI AI Assistant[/bold cyan]\nModel: {model_name}\nMode: {mode.upper()}",
+            border_style="cyan",
+        )
+    )
+    console.print(
+        Panel.fit(
+            f"[bold yellow]Commands:\n/rag = RAG mode\n/pure = Pure mode\n/exit = quit[/bold yellow]",
+            border_style="yellow",
+        )
+    )
     print(f"Starting in {mode.upper()} mode.")
 
     while True:
@@ -39,29 +66,60 @@ def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
         if mode == "rag":
             # try local RAG first
             docs_with_scores = vectorstore.similarity_search_with_score(query, k=k)
-            
-            #------------------------------ DEBUGGING---------------------------------
+
+            # ------------------------------ DEBUGGING---------------------------------
             for doc, score in docs_with_scores:
                 console.print(f"[grey50]Local candidate score: {score:.2f}[/grey50]")
-            #-------------------------------------------------------------------------
-            
-            good_matches = [doc for doc, score in docs_with_scores if score <= min_score]
+            # -------------------------------------------------------------------------
 
+            good_matches = [
+                doc for doc, score in docs_with_scores if score <= min_score
+            ]
+            local_context = (
+                "\n".join([d.page_content for d in good_matches])
+                if good_matches
+                else ""
+            )
             if good_matches:
-                context = "\n".join([d.page_content for d in good_matches])
-                console.print(f"[bold cyan] Using local RAG context (min_score={min_score})[/bold cyan]")
+                console.print(
+                    f"[bold cyan] Using local RAG context (min_score={min_score})[/bold cyan]"
+                )
+                context = local_context
             else:
                 # Fallback to web retrieval
-                console.print("[bold cyan]No strong local match found. Falling back to web search...[/bold cyan]")
+                refined_query = f"{query} in-depth analysis OR detailed explantion"
+                console.print(
+                    "[bold cyan]No strong local match found. Falling back to web search...[/bold cyan]"
+                )
                 web_docs, sources = web_retrieve(query, k=k)
-                if not web_docs:
-                    context = "No context could be retrieved."
-                    sources = []
-                else:
-                    context = "\n".join([d.page_content for d in web_docs])
-            
+                web_context = (
+                    "\n".join([d.page_content for d in web_docs])
+                    if web_docs
+                    else "No context could be retrieved."
+                )
+
+                # blend if partial local matches exist (even if below min_score
+                blended_context = (
+                    f"Local snippets (for reference): \n{local_context}\n\nWeb Context: \n{web_context}"
+                    if local_context
+                    else web_context
+                )
+                context = blended_context
+
             # Ask model with context
-            prompt = f"Answer the following question based on the provided context:\n\n{context}\n\nQuestion: {query}"
+            prompt = f"""
+                Synthesize and explain the key points from the following context to answer the question.
+                - Reason step-by-step.
+                - Provide insights, examples, or implications where relevant.
+                - Be concise but thorough; expand on superficial details if needed.
+                - Cite sources only if directly quoting.
+
+                Context:
+                {context}
+
+                Question: {query}
+                """
+
             rag_messages.append({"role": "user", "content": prompt})
             ai_reply = ollama_chat(model_name, rag_messages)
             rag_messages.append({"role": "assistant", "content": ai_reply})
@@ -70,31 +128,44 @@ def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
             pure_messages.append({"role": "user", "content": query})
             ai_reply = ollama_chat(model_name, pure_messages)
             pure_messages.append({"role": "assistant", "content": ai_reply})
-        
-        console.print(Panel(ai_reply, title="[bold magenta]AI[bold magenta]", border_style="magenta"))
 
-        if sources:
-            console.print(Panel("\n".join(sources), title="[bold blue]Sources[/bold blue]", border_style="blue"))
+        console.print(
+            Panel(
+                ai_reply, title="[bold magenta]AI[bold magenta]", border_style="magenta"
+            )
+        )
 
-#Main Program Flow
+        if "sources" in locals() and sources:  # only if fallback triggered
+            console.print(
+                Panel(
+                    "\n".join(sources),
+                    title="[bold blue]Sources[/bold blue]",
+                    border_style="blue",
+                )
+            )
+
+
+# Main Program Flow
 def main():
     # Detect model
     console.print("[bold cyan]Detecting best model for your system...[/bold cyan]")
     compatible_models, selected_model = suggest_model()
-    #choice = Prompt.ask("Press enter to accept model", default=selected_model)
+    # choice = Prompt.ask("Press enter to accept model", default=selected_model)
 
     # Ensure model exists
     console.print("[bold cyan]Ensuring model is installed...[/bold cyan]")
     ensure_model_exists(selected_model)
 
     # Ask for PDF Directory
-    pdf_dir = Prompt.ask("[bold cyan]Enter the full path to your PDF directory[/bold cyan]")
+    pdf_dir = Prompt.ask(
+        "[bold cyan]Enter the full path to your PDF directory[/bold cyan]"
+    )
 
     # Parse PDFs with progress
     files = check_dir(pdf_dir)
     if not files:
         return
-    nomnom(pdf_dir) 
+    nomnom(pdf_dir)
 
     # Bulding vector store with spinner
     # ERROR: Displays "Building vector store" twice for some reason but only one functions with the spinner element
@@ -106,6 +177,6 @@ def main():
     # Start chat
     chat_with_model_hybrid(selected_model, vectorstore)
 
+
 if __name__ == "__main__":
     main()
-
