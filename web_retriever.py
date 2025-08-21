@@ -6,14 +6,14 @@ from urllib.parse import quote_plus
 import trafilatura
 
 # ------------ CONFIG --------------------
-SEARCH_ENGINE = "https://duckduckgo.com/html/?q="  # HTML results, easy to parse
+SEARCH_ENGINE = "https://html.duckduckgo.com/html/?q="  # HTML results, easy to parse
 MAX_RESULTS = 5
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 # ----------------------------------------
 
 
 def search_web(query):
-    """Perfrom a simple DuckDuckGosearch and return top result URLs"""
+    """Perfrom a simple DuckDuckGo search and return top result URLs"""
     search_url = SEARCH_ENGINE + quote_plus(query)
     headers = {"User-Agent": "Mozilla/5.0"}
     resp = requests.get(search_url, headers=headers)
@@ -43,7 +43,7 @@ def scrape_url(url):
 
 
 def chunk_text(text, chunk_size=800):
-    """Split text inot smaller chunks for embedding."""
+    """Split text into smaller chunks for embedding."""
     words = text.split()
     return [
         " ".join(words[i : i + chunk_size]) for i in range(0, len(words), chunk_size)

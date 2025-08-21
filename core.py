@@ -6,6 +6,7 @@ import requests
 from ingest import nomnom
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
+from bs4 import BeautifulSoup
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -18,18 +19,34 @@ console = Console()
 
 def fetch_remote_models():
     try:
-        resp = requests.get("https://ollama.com/api/models", timeout=10)
+        resp = requests.get("https://ollama.com/library", timeout=10)
         if resp.status_code == 200:
-            data = resp.json()
-            return data.get("models", [])
+            soup = BeaturifulSoup(resp.text, 'html.parser')
+            models = []
+            for a in soup.find_all('a', href=lambda h: h an h.startswith('/library') and len(h.split('/')) == 3):
+                slug = a['href'].split('/')[-1]
+                h2 = a.find('h2')
+                if h2:
+                    name = h2.text.strip()
+                    p = a.find('p')
+                    description = p.text.strip() if p else "No description available"
+                    models.append({
+                        "name": slug,
+                        "param_param_size": "?",
+                        "min_ram": "?",
+                        "min_vram": "?",
+                        "use_case": description,
+                        "source": "Remote",
+                    })
+            if models:
+                return models
+            else:
+                console.print("[bold yellow]No remote models found on the library page.[/bold yellow]")
         else:
-            console.print(
-                f"[bold red] Failed to fetch remote models (status {resp.status_code})[/bold red]"
-            )
+            console.print(f"[bold red]Failed ot fetch remote moedls (status {resp.status_code})[/bold red]")
     except Exception as e:
         console.print(f"[bold red]Error fetching remote models: {e}[/bold red]")
     return []
-
 
 # Suggest a model
 def suggest_model():
@@ -56,7 +73,7 @@ def suggest_model():
         Panel(system_info, title="System Specifications", border_style="cyan")
     )
 
-    # Define Ollama models with approximate Ram requiremends
+    # Define Ollama models with approximate Ram requirements
     # Query ollama for installed models
     try:
         installed_info = ollama.list()
@@ -97,25 +114,23 @@ def suggest_model():
 
     remote_models = fetch_remote_models()
 
-    all_models = list(compatible_models)
-    for m in remote_models:
-        all_models.append(
-            {
-                "name": m.get("name", "unknown"),
-                "param_size": m.get("parameter_size", "?"),
-                "min_ram": "?",
-                "min_vram": "?",
-                "use_case": m.get("description", "Avalable on Ollama Hub"),
-                "source": "Remote",
-            }
-        )
+    all_models = compatible_models + remote_models
 
     if not all_models:
         console.print("[bold red]No models found (local or remote).[/bold red]")
         return [], None
-
+    
     # Sort models by parameter size (ascending) for suggestion logic
-    all_models.sort(key=lambda x: x["param_size"])
+    def sort_key(x):
+        ps = x["param_size"]
+        if ps == "?":
+            return 0
+        try:
+            return float(ps.strip(' GB est').rstrip('B'))
+        except ValueError:
+            return 0
+
+    all_models.sort(key=sort_key)
 
     # Display compatible models in a table
     table = Table(
@@ -202,7 +217,7 @@ def ensure_model_exists(model_name):
             )
             ollama.pull(model_name)
             console.print(
-                f"[bold green]Model {model_Name} downloaded successfully.[/bold green]"
+                f"[bold green]Model {model_name} downloaded successfully.[/bold green]"
             )
         else:
             print(f"Model {model_name} is already installed.")

@@ -19,7 +19,7 @@ console = Console()
 
 
 # Switch between RAG and Pure modes
-def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
+def chat_with_model_hybrid(model_name, vectorstore, k=5, min_score=0.6):
     mode = "rag"  # default
     rag_messages = [
         {
@@ -87,11 +87,11 @@ def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
                 context = local_context
             else:
                 # Fallback to web retrieval
-                refined_query = f"{query} in-depth analysis OR detailed explantion"
+                refined_query = f"{query} in-depth analysis OR detailed explanation"
                 console.print(
                     "[bold cyan]No strong local match found. Falling back to web search...[/bold cyan]"
                 )
-                web_docs, sources = web_retrieve(query, k=k)
+                web_docs, sources = web_retrieve(refined_query, k=k)
                 web_context = (
                     "\n".join([d.page_content for d in web_docs])
                     if web_docs
@@ -131,7 +131,9 @@ def chat_with_model_hybrid(model_name, vectorstore, k=3, min_score=0.6):
 
         console.print(
             Panel(
-                ai_reply, title="[bold magenta]AI[bold magenta]", border_style="magenta"
+                ai_reply,
+                title="[bold magenta]AI[/bold magenta]",
+                border_style="magenta",
             )
         )
 
