@@ -1,3 +1,4 @@
+import re
 import os
 import psutil
 import torch
@@ -17,7 +18,16 @@ VECTOR_STORE_PATH = "vector_store"
 console = Console()
 
 
-def fetch_remote_models():
+def fetch_remote_models(gpu_available=False):
+    MODEL_SPEC_MAP = {
+        "llama3": {"param_size": "8B", "size_gb": 8.0},
+        "mistral": {"param_size": "7B", "size_gb": 7.0},
+        "phi3": {"param_size": "3.8B", "size_gb": 3.8},
+        "gemma2": {"param_size": "9B", "size_gb": 9.0},
+        "llama3.1": {"param_size": "8B", "size_gb": 8.0},
+        # Add more models as needed
+    }
+
     try:
         resp = requests.get("https://ollama.com/library", timeout=10)
         if resp.status_code == 200:
@@ -30,22 +40,88 @@ def fetch_remote_models():
                 and len(h.split("/")) == 3,
             ):
                 slug = a["href"].split("/")[-1]
+                # console.print(f"[bold cyan]Debug: Processing slug: {slug}[/bold cyan]")
+                # Log all text within the <a> tag
+                all_text = a.get_text(strip=True)
+                # console.print(f"[bold cyan]Debug: All text in <a>: {all_text}[/bold cyan]")
+
                 h2 = a.find("h2")
-                if h2:
-                    name = h2.text.strip()
-                    p = a.find("p")
-                    description = p.text.strip() if p else "No description available"
-                    models.append(
-                        {
-                            "name": slug,
-                            "param_size": "?",
-                            "min_ram": "?",
-                            "min_vram": "?",
-                            "use_case": description,
-                            "source": "Remote",
-                        }
-                    )
+                name = h2.text.strip() if h2 else slug
+                p = a.find("p")
+                description = p.text.strip() if p else "No description available"
+
+                # Use static mapping if available
+                spec = MODEL_SPEC_MAP.get(slug, {})
+                param_size = spec.get("param_size", "?")
+                size_gb = spec.get("size_gb", 1.0)
+
+                # Search for parameter size in any tag within <a>
+                param_elem = None
+                for tag in a.find_all(["span", "p", "div", "strong", "em"]):
+                    if tag.string and (
+                        "billion" in tag.string.lower()
+                        or tag.string.lower().endswith("b")
+                        or "parameters" in tag.string.lower()
+                    ):
+                        param_elem = tag
+                        break
+                if param_elem and param_elem.string:
+                    text = param_elem.string.strip().lower()
+                    # console.print(f"[bold cyan]Debug: Found param_elem: {text}[/bold cyan]")
+                    # Extract parameter size
+                    if "billion" in text:
+                        size = text.split("billion")[0].strip().split()[-1]
+                        try:
+                            size_gb = float(size)
+                            param_size = f"{size}B"
+                        except ValueError:
+                            size_gb = spec.get("size_gb", 1.0)
+                    elif text.endswith("b"):
+                        try:
+                            size_gb = float(text.rstrip("b"))
+                            param_size = text.upper()
+                        except ValueError:
+                            size_gb = spec.get("size_gb", 1.0)
+                    elif "parameters" in text:
+                        # Handle formats like "8B parameters"
+                        size_match = re.search(
+                            r"(\d+\.?\d*b)\s*parameters", text, re.IGNORECASE
+                        )
+                        if size_match:
+                            param_size = size_match.group(1).upper()
+                            try:
+                                size_gb = float(size_match.group(1).rstrip("b"))
+                            except ValueError:
+                                size_gb = spec.get("size_gb", 1.0)
+
+                # Fallback: Parse slug for parameter size
+                if param_size == "?" and ":" in slug:
+                    tag = slug.split(":")[-1].lower()
+                    # console.print(f"[bold cyan]Debug: Extracted tag from slug: {tag}[/bold cyan]")
+                    if tag.endswith("b"):
+                        param_size = tag.upper()
+                        try:
+                            size_gb = float(tag.rstrip("b"))
+                        except ValueError:
+                            size_gb = spec.get("size_gb", 1.0)
+
+                # Estimate min_ram and min_vram
+                min_ram = max(2, size_gb * 2)
+                min_vram = 0 if not gpu_available else size_gb * 0.5
+
+                model_entry = {
+                    "name": slug,
+                    "param_size": param_size,
+                    "min_ram": round(min_ram, 1),
+                    "min_vram": round(min_vram, 1),
+                    "use_case": description,
+                    "source": "Remote",
+                }
+                # console.print(f"[bold cyan]Debug: Model entry: {model_entry}[/bold cyan]")
+                models.append(model_entry)
+
             if models:
+                # console.print(f"[bold cyan]Debug: Fetched {len(models)} remote models[/bold cyan]")
                 return models
             else:
                 console.print(
@@ -53,8 +129,9 @@ def fetch_remote_models():
                 )
         else:
             console.print(
-                f"[bold red]Failed ot fetch remote moedls (status {resp.status_code})[/bold red]"
+                f"[bold red]Failed to fetch remote models (status {resp.status_code})[/bold red]"
             )
+
     except Exception as e:
         console.print(f"[bold red]Error fetching remote models: {e}[/bold red]")
     return []
@@ -124,7 +201,7 @@ def suggest_model():
                 }
             )
 
-    remote_models = fetch_remote_models()
+    remote_models = fetch_remote_models(gpu_available)
 
     all_models = compatible_models + remote_models
 
