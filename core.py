@@ -21,32 +21,44 @@ def fetch_remote_models():
     try:
         resp = requests.get("https://ollama.com/library", timeout=10)
         if resp.status_code == 200:
-            soup = BeaturifulSoup(resp.text, 'html.parser')
+            soup = BeautifulSoup(resp.text, "html.parser")
             models = []
-            for a in soup.find_all('a', href=lambda h: h an h.startswith('/library') and len(h.split('/')) == 3):
-                slug = a['href'].split('/')[-1]
-                h2 = a.find('h2')
+            for a in soup.find_all(
+                "a",
+                href=lambda h: h
+                and h.startswith("/library")
+                and len(h.split("/")) == 3,
+            ):
+                slug = a["href"].split("/")[-1]
+                h2 = a.find("h2")
                 if h2:
                     name = h2.text.strip()
-                    p = a.find('p')
+                    p = a.find("p")
                     description = p.text.strip() if p else "No description available"
-                    models.append({
-                        "name": slug,
-                        "param_param_size": "?",
-                        "min_ram": "?",
-                        "min_vram": "?",
-                        "use_case": description,
-                        "source": "Remote",
-                    })
+                    models.append(
+                        {
+                            "name": slug,
+                            "param_size": "?",
+                            "min_ram": "?",
+                            "min_vram": "?",
+                            "use_case": description,
+                            "source": "Remote",
+                        }
+                    )
             if models:
                 return models
             else:
-                console.print("[bold yellow]No remote models found on the library page.[/bold yellow]")
+                console.print(
+                    "[bold yellow]No remote models found on the library page.[/bold yellow]"
+                )
         else:
-            console.print(f"[bold red]Failed ot fetch remote moedls (status {resp.status_code})[/bold red]")
+            console.print(
+                f"[bold red]Failed ot fetch remote moedls (status {resp.status_code})[/bold red]"
+            )
     except Exception as e:
         console.print(f"[bold red]Error fetching remote models: {e}[/bold red]")
     return []
+
 
 # Suggest a model
 def suggest_model():
@@ -119,16 +131,17 @@ def suggest_model():
     if not all_models:
         console.print("[bold red]No models found (local or remote).[/bold red]")
         return [], None
-    
+
     # Sort models by parameter size (ascending) for suggestion logic
     def sort_key(x):
-        ps = x["param_size"]
-        if ps == "?":
-            return 0
+        ps = x.get("param_size", "?")
+        if ps == "?" or not ps:
+            return float("-inf")
         try:
-            return float(ps.strip(' GB est').rstrip('B'))
-        except ValueError:
-            return 0
+            cleaned = ps.replace(" GB est", "").replace("B", "")
+            return float(cleaned)
+        except (ValueError, TypeError):
+            return float("-inf")
 
     all_models.sort(key=sort_key)
 
@@ -147,14 +160,21 @@ def suggest_model():
     table.add_column("Source", style="white")
 
     for i, model in enumerate(all_models, 1):
+        min_vram_value = model.get("min_vram", 0)
+        try:
+            min_vram_float = float(min_vram_value)
+            min_vram_display = str(min_vram_value) if min_vram_float > 0 else "N/A"
+        except (ValueError, TypeError):
+            min_vram_display = "N/A"
+
         table.add_row(
             str(i),
-            model["name"],
-            model["param_size"],
-            model["use_case"],
-            str(model["min_ram"]),
-            str(model["min_vram"]) if model["min_vram"] > 0 else "N/A",
-            model["source"],
+            model.get("name", "Unknown"),
+            model.get("param_size", "?"),
+            model.get("use_case", "N/A"),
+            str(model.get("min_ram", "?")),
+            min_vram_display,
+            model.get("source", "Unknown"),
         )
 
     console.print(table)
