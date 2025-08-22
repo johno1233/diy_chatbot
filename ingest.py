@@ -16,6 +16,8 @@ nltk.download("punkt", quiet=True)
 def check_dir(pdf_dir=None):
     if pdf_dir is None:
         pdf_dir = input("Enter path to pdf directory: ")
+    
+    pdf_dir = os.path.expanduser(pdf_dir)
 
     if os.path.isdir(pdf_dir):
         dir_path = Path(pdf_dir)

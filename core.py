@@ -302,6 +302,9 @@ def suggest_model():
 
 # Ensure model is available locally
 def ensure_model_exists(model_name):
+    if model_name is None:
+        model_name = "llama3"
+        console.print(f"[bold yellow]Model name was None, falling back to: {model_name}[/bold yellow]")
     try:
         # get a list of installed models
         installed_info = ollama.list()
