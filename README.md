@@ -17,7 +17,7 @@
 - Added webscraping functionality to fall back on when a query is made that isn't covered in provided RAG environment
 ## Planned Functionality/Updates:
 - Continue to refine CLI interface
-- Currently "Sources" are returned regardlessd of whether or not we fell back to web scraping or used provided context
+- Currently "Sources" are returned regardless of whether or not we fell back to web scraping or used provided context
 - want to add support for more file extensions
 - want to make sure that GPU is being detected accurately for model suggestion
 - Want to dynamically pull list of models from Ollama instead of a fixed list of models
