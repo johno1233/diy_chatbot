@@ -335,10 +335,10 @@ def build_vector_store(file_path="training_data.txt", save_path="vector_store"):
         docs = [line.strip() for line in f if line.strip()]
 
     console.print(f"[bold cyan]Embedding {len(docs)} sequences...[/bold cyan]")
-
-    embeddings = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-small-en-v1.5", model_kwargs={"device": "cpu"}
-    )
+    if(torch.cuda.is_available()):
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5", model_kwargs={"device": "cuda"})
+    else:
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5", model_kwargs={"device": "cpu"})
 
     vectorstore = FAISS.from_texts(docs, embeddings)
     vectorstore.save_local(save_path)
@@ -348,9 +348,10 @@ def build_vector_store(file_path="training_data.txt", save_path="vector_store"):
 
 # Load vector store
 def load_vector_store():
-    embeddings = HuggingFaceEmbeddings(
-        model_name="BAAI/bge-small-en-v1.5", model_kwargs={"device": "cpu"}
-    )
+    if(torch.cuda.is_available()):
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5", model_kwargs={"device": "cuda"})
+    else:
+        embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en-v1.5", model_kwargs={"device": "cpu"})
     return FAISS.load_local(
         VECTOR_STORE_PATH, embeddings, allow_dangerous_deserialization=True
     )

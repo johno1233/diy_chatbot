@@ -9,7 +9,7 @@ console = Console()
 
 import nltk
 
-nltk.download("punkt", quiet=True)
+nltk.download("punkt_tab", quiet=True)
 
 
 # get path from user input, check if path is valid, create a list of all pdf files in path
@@ -58,15 +58,13 @@ def clean(text):
     text = text.encode("utf-8", errors="ignore").decode("utf-8")
 
     # Remove special characters and excessive whitespace
-    text = re.sub(r"[\x00-\x1F\x7F-\x9F", "", text)  # Removes control characters
+    text = re.sub(r"[\x00-\x1F\x7F-\x9F]", "", text)  # Removes control characters
     text = re.sub(r"\s+", " ", text)  # Replace multiple spaces witn a single space
     text = text.strip()
 
     # Remove common PDF artifacts (page numbers, headers, formatting)
     text = re.sub(r"\bPage \d+\b", "", text)  # Remove "Page X"
-    text = re.sub(
-        r"^\d+\s*$", "", text, flags=re.MULTILINE
-    )  # Remove lone numbers like page numbers
+    text = re.sub(r"^\d+\s*$", "", text, flags=re.MULTILINE)  # Remove lone numbers like page numbers
     return text
 
 
