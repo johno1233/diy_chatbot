@@ -4,6 +4,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from urllib.parse import quote_plus
 import trafilatura
+from urllib.parse import parse_qs, urlparse, unquote
 
 # ------------ CONFIG --------------------
 SEARCH_ENGINE = "https://html.duckduckgo.com/html/?q="  # HTML results, easy to parse
@@ -23,8 +24,15 @@ def search_web(query):
     for a in soup.select("a.result__a")[:MAX_RESULTS]:
         href = a.get("href")
         if href:
-            full_href = "https://html.duckduckgo.com" + href
-            urls.append(full_href)
+            parsed_url = urlparse(href)
+            query_params = parse_qs(parsed_url.query)
+            uddg = query_params.get("uddg", [None])[0]
+            if uddg:
+                target_url = unquote(uddg)
+                urls.append(target_url)
+            else:
+                full_href = "https://html.duckduckgo.com" + href
+                urls.append(full_href)
     return urls
 
 
