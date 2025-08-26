@@ -61,7 +61,7 @@ def chunk_text(text, chunk_size=800):
 def web_retrieve(query, k=5):
     """Retrieve context chunks from live web search."""
     urls = search_web(query)
-    print(f"[Debug] Found URLs: {urls}")
+    #print(f"[Debug] Found URLs: {urls}")
     if not urls:
         return [], []
 
