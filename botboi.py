@@ -24,13 +24,20 @@ def chat_with_model_hybrid(model_name, vectorstore, k=5, min_score=0.6):
     rag_messages = [
         {
             "role": "system",
-            "content": "You are a helpful AI assistant that answers questions using provided context.",
+            "content": (
+                "You are an expert AI assistant specializing in synthesizing information from provided context. "
+                "Use the context to answer the question accurately, prioritizing relevant details and avoiding speculation. "
+                "If the context is insufficient, clearly state so and provide a reasoned response based on general knowledge."
+            )
         }
     ]
     pure_messages = [
         {
             "role": "system",
-            "content": "You are a helpful AI assistant that answers questions using general knowledge.",
+            "content": (
+                "You are an expert AI assistant with broad general knowledge. "
+                "Provide accurate, detailed, and well-structured answers to questions, "
+                "using logical reasoning and examples where appropriate. If unsure, state your limitations clearly.")
         }
     ]
 
