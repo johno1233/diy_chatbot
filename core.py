@@ -18,7 +18,7 @@ VECTOR_STORE_PATH = "vector_store"
 console = Console()
 
 
-def fetch_remote_models(gpu_available=False):
+def fetch_remote_models(gpu_available=False, gpu_vram_gb=0, total_ram_gb=0):
     MODEL_SPEC_MAP = {
         "llama3": {"param_size": "8B", "size_gb": 8.0},
         "mistral": {"param_size": "7B", "size_gb": 7.0},
@@ -198,18 +198,31 @@ def suggest_model():
         min_vram = 0 if not gpu_available else min(size_gb * 0.5, gpu_vram_gb)
 
         if total_ram_gb >= min_ram:
-            compatible_models.append(
-                {
-                    "name": name,
-                    "param_size": param_size,
-                    "min_ram": round(min_ram, 1),
-                    "min_vram": round(min_vram, 1),
-                    "use_case": "General Purpose",  # will expand later
-                    "source": "Installed",
-                }
-            )
-
-    remote_models = fetch_remote_models(gpu_available)
+            if gpu_available:
+                if gpu_vram_gb * 0.5 <= min_vram <= gpu_vram_gb:
+                    compatible_models.append(
+                        {
+                            "name": name,
+                            "param_size": param_size,
+                            "min_ram": round(min_ram, 1),
+                            "min_vram": round(min_vram, 1),
+                            "use_case": "General Purpose",
+                            "source": "Installed",
+                        }
+                    )
+            else:
+                if min_vram == 0:
+                    compatible_models.append(
+                        {
+                            "name": name,
+                            "param_size": param_size,
+                            "min_ram": round(min_ram, 1),
+                            "min_vram": round(min_vram, 1),
+                            "use_case": "General Purpose",
+                            "source": "Installed",
+                        }
+                    )
+    remote_models = fetch_remote_models(gpu_available, gpu_vram_gb, total_ram_gb)
 
     all_models = compatible_models + remote_models
 
@@ -228,7 +241,7 @@ def suggest_model():
         except (ValueError, TypeError):
             return float("-inf")
 
-    all_models.sort(key=sort_key)
+    all_models.sort(key=sort_key, reverse=gpu_available)
 
     # Display compatible models in a table
     table = Table(
@@ -300,7 +313,7 @@ def suggest_model():
                 return [model["name"] for model in all_models], selected_model
             else:
                 console.print(
-                    f"[bold red]Please enter a number between 1 and {len(compatible_models)}.[/bold red]"
+                    f"[bold red]Please enter a number between 1 and {len(all_models)}.[/bold red]"
                 )
         except ValueError:
             console.print(
