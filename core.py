@@ -117,8 +117,16 @@ def fetch_remote_models(gpu_available=False):
                     "use_case": description,
                     "source": "Remote",
                 }
-                # console.print(f"[bold cyan]Debug: Model entry: {model_entry}[/bold cyan]")
-                models.append(model_entry)
+                # Filter based on system specs
+                if total_ram_gb >= min_ram:
+                    if gpu_available:
+                        # For GPU, only include models that user VRAM close to available (at least half, up to available)
+                        if gpu_vram_gb * 0.5 <= min_vram <= gpu_vram_gb:
+                            models.append(model_entry)
+                    else:
+                        # For no GPU, include only if no VRAM required
+                        if min_vram == 0:
+                            models.append(model_entry)
 
             if models:
                 # console.print(f"[bold cyan]Debug: Fetched {len(models)} remote models[/bold cyan]")
